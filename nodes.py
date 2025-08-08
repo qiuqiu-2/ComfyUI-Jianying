@@ -30,7 +30,7 @@ class JianyingDraftNode:
     FUNCTION = "create_draft"
     CATEGORY = "剪映工具"
     
-    def create_draft(self, draft_path, project_name="未命名项目", video_path="", duration=10.0, resolution="1920x1080", fps="30"):
+    def create_draft(self, draft_path=None, project_name="未命名项目", video_path="", duration=10.0, resolution="1920x1080", fps="30"):
         """创建剪映草稿"""
         
         # 解析分辨率
@@ -41,7 +41,7 @@ class JianyingDraftNode:
         current_time = datetime.now().isoformat()
         
         # 确保输出目录存在
-        if not draft_path or not os.path.exists(draft_path):
+        if draft_path is None or not draft_path or not os.path.exists(draft_path):
             draft_path = os.path.join(os.path.expanduser("~"), "Documents", "JianyingPro", "Drafts")
             os.makedirs(draft_path, exist_ok=True)
         
@@ -123,7 +123,6 @@ class JianyingDraftAudioAdder:
                     "description": "剪映草稿文件夹路径，包含draft_meta_info.json和draft_content.json"
                 }),
                 "audio_path": ("STRING", {"default": "", "name": "音频文件路径", "description": "背景音乐文件路径"}),
-                "audio_duration": ("FLOAT", {"default": 0, "min": 0, "max": 3600.0, "step": 0.1, "name": "音频时长限制", "description": "限制音频的最大时长，0表示使用草稿原时长"}),
                 "audio_volume": ("FLOAT", {"default": 0.8, "min": 0.0, "max": 1.0, "step": 0.1, "name": "音频音量", "description": "背景音乐的音量（0-1）"}),
             }
         }
@@ -133,10 +132,10 @@ class JianyingDraftAudioAdder:
     FUNCTION = "add_audio_to_draft"
     CATEGORY = "剪映工具"
     
-    def add_audio_to_draft(self, draft_path, audio_path="", audio_duration=0, audio_volume=0.8):
+    def add_audio_to_draft(self, draft_path=None, audio_path="", audio_volume=0.8):
         """向剪映草稿添加背景音乐"""
         
-        if not draft_path or not os.path.exists(draft_path):
+        if draft_path is None or not draft_path or not os.path.exists(draft_path):
             return ("", "错误：草稿路径不存在")
         
         meta_info_path = os.path.join(draft_path, "draft_meta_info.json")
@@ -163,11 +162,8 @@ class JianyingDraftAudioAdder:
             if max_duration == 0:
                 max_duration = 10.0  # 默认值
             
-            # 使用指定的音频时长限制或草稿时长
-            if audio_duration > 0 and audio_duration < max_duration:
-                final_audio_duration = audio_duration
-            else:
-                final_audio_duration = max_duration
+            # 使用草稿的最大时长作为音频时长
+            final_audio_duration = max_duration
             
             # 添加音频到元数据
             audio_id = f"audio_{uuid.uuid4().hex[:8]}"
