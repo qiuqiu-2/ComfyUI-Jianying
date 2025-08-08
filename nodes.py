@@ -10,13 +10,13 @@ class JianyingDraftNode:
     def INPUT_TYPES(cls):
         return {
             "required": {
+            },
+            "optional": {
                 "draft_path": ("STRING", {
                     "default": "C:\\Users\\" + os.getenv("USERNAME", "admin") + "\\Documents\\JianyingPro\\Drafts", 
                     "name": "草稿保存路径", 
                     "description": "剪映草稿保存路径，例如：C:\\Users\\用户名\\Documents\\JianyingPro\\Drafts"
                 }),
-            },
-            "optional": {
                 "project_name": ("STRING", {"default": "未命名项目", "name": "项目名称"}),
                 "video_path": ("STRING", {"default": "", "name": "视频文件路径", "description": "用于指定项目中使用的主视频文件路径"}),
                 "duration": ("FLOAT", {"default": 10.0, "min": 0.1, "max": 3600.0, "step": 0.1, "name": "项目时长(秒)"}),
@@ -115,13 +115,13 @@ class JianyingDraftAudioAdder:
     def INPUT_TYPES(cls):
         return {
             "required": {
+            },
+            "optional": {
                 "draft_path": ("STRING", {
                     "default": "", 
                     "name": "剪映草稿路径", 
                     "description": "剪映草稿文件夹路径，包含draft_meta_info.json和draft_content.json"
                 }),
-            },
-            "optional": {
                 "audio_path": ("STRING", {"default": "", "name": "音频文件路径", "description": "背景音乐文件路径"}),
                 "audio_duration": ("FLOAT", {"default": 0, "min": 0, "max": 3600.0, "step": 0.1, "name": "音频时长限制", "description": "限制音频的最大时长，0表示使用草稿原时长"}),
                 "audio_volume": ("FLOAT", {"default": 0.8, "min": 0.0, "max": 1.0, "step": 0.1, "name": "音频音量", "description": "背景音乐的音量（0-1）"}),
