@@ -1,0 +1,91 @@
+{
+  "last_node_id": 4,
+  "last_link_id": 3,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "JianyingDraftNode",
+      "pos": [100, 100],
+      "size": [400, 300],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {"name": "UUID", "type": "STRING", "links": []},
+        {"name": "草稿目录", "type": "STRING", "links": [2]}
+      ],
+      "properties": {
+        "Node name for S&R": "JianyingDraftNode"
+      },
+      "widgets_values": [
+        "C:\\Users\\用户名\\Documents\\JianyingPro\\Drafts",
+        "图片项目示例",
+        "",
+        10.0,
+        "1920x1080",
+        "30"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "JianyingDraftImageAdder",
+      "pos": [600, 100],
+      "size": [400, 250],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {"name": "草稿目录", "type": "STRING", "link": 2}
+      ],
+      "outputs": [
+        {"name": "草稿目录", "type": "STRING", "links": [3]},
+        {"name": "状态信息", "type": "STRING", "links": []},
+        {"name": "图片总数", "type": "INT", "links": []}
+      ],
+      "properties": {
+        "Node name for S&R": "JianyingDraftImageAdder"
+      },
+      "widgets_values": [
+        "C:\\Users\\用户名\\Pictures\\image1.jpg",
+        "",
+        3.0,
+        "append"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "JianyingDraftImageAdder",
+      "pos": [600, 400],
+      "size": [400, 250],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {"name": "草稿目录", "type": "STRING", "link": 3}
+      ],
+      "outputs": [
+        {"name": "草稿目录", "type": "STRING", "links": []},
+        {"name": "状态信息", "type": "STRING", "links": []},
+        {"name": "图片总数", "type": "INT", "links": []}
+      ],
+      "properties": {
+        "Node name for S&R": "JianyingDraftImageAdder"
+      },
+      "widgets_values": [
+        "C:\\Users\\用户名\\Pictures\\image2.jpg",
+        "",
+        3.0,
+        "append"
+      ]
+    }
+  ],
+  "links": [
+    [2, 1, 1, 2, 0, "STRING"],
+    [3, 2, 0, 3, 0, "STRING"]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}

@@ -228,13 +228,204 @@ class JianyingDraftAudioAdder:
         except Exception as e:
             return ("", f"错误：{str(e)}")
 
+class JianyingDraftImageAdder:
+    """向剪映草稿添加图片的节点"""
+    
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image_path": ("STRING", {
+                    "default": "", 
+                    "name": "图片文件路径", 
+                    "description": "要添加到草稿的图片文件路径"
+                }),
+            },
+            "optional": {
+                "draft_path": ("STRING", {
+                    "default": "", 
+                    "name": "剪映草稿路径", 
+                    "description": "剪映草稿文件夹路径，包含draft_meta_info.json和draft_content.json"
+                }),
+                "duration_per_image": ("FLOAT", {
+                    "default": 3.0, 
+                    "min": 0.5, 
+                    "max": 30.0, 
+                    "step": 0.1, 
+                    "name": "单张图片时长", 
+                    "description": "每张图片展示的时长（秒）"
+                }),
+                "image_order": (["append", "insert_first"], {
+                    "default": "append", 
+                    "name": "图片顺序", 
+                    "description": "append: 添加到现有图片后面, insert_first: 插入到最前面"
+                }),
+            }
+        }
+    
+    RETURN_TYPES = ("STRING", "STRING", "INT")
+    RETURN_NAMES = ("草稿目录", "状态信息", "图片总数")
+    FUNCTION = "add_image_to_draft"
+    CATEGORY = "剪映工具"
+    
+    def add_image_to_draft(self, image_path, draft_path=None, duration_per_image=3.0, image_order="append"):
+        """向剪映草稿添加图片"""
+        
+        if not image_path or not os.path.exists(image_path):
+            return ("", f"错误：图片路径不存在: {image_path}", 0)
+        
+        if draft_path is None or not draft_path:
+            return ("", "错误：草稿路径不能为空", 0)
+        
+        # 标准化路径
+        draft_path = os.path.normpath(draft_path.strip())
+        
+        if not os.path.exists(draft_path):
+            return ("", f"错误：草稿路径不存在: {draft_path}", 0)
+        
+        meta_info_path = os.path.join(draft_path, "draft_meta_info.json")
+        content_path = os.path.join(draft_path, "draft_content.json")
+        
+        if not os.path.exists(meta_info_path):
+            return ("", f"错误：找不到文件 {meta_info_path}", 0)
+        
+        if not os.path.exists(content_path):
+            return ("", f"错误：找不到文件 {content_path}", 0)
+        
+        try:
+            # 读取现有草稿信息
+            with open(meta_info_path, "r", encoding="utf-8") as f:
+                meta_info = json.load(f)
+            
+            with open(content_path, "r", encoding="utf-8") as f:
+                content_data = json.load(f)
+            
+            # 获取当前图片数量
+            current_images = []
+            if "materials" in content_data and "images" in content_data["materials"]:
+                current_images = content_data["materials"]["images"]
+            
+            # 生成新的图片ID
+            image_id = f"image_{uuid.uuid4().hex[:8]}"
+            
+            # 添加图片到元数据
+            if "draft_materials" not in meta_info:
+                meta_info["draft_materials"] = []
+            
+            meta_info["draft_materials"].append({
+                "id": image_id,
+                "path": image_path,
+                "type": "image"
+            })
+            
+            # 确保materials结构存在
+            if "materials" not in content_data:
+                content_data["materials"] = {}
+            if "images" not in content_data["materials"]:
+                content_data["materials"]["images"] = []
+            
+            # 添加图片到内容
+            new_image = {
+                "id": image_id,
+                "path": image_path,
+                "duration": duration_per_image,
+                "inPoint": 0,
+                "outPoint": duration_per_image
+            }
+            
+            # 根据顺序添加图片
+            if image_order == "insert_first":
+                content_data["materials"]["images"].insert(0, new_image)
+            else:
+                content_data["materials"]["images"].append(new_image)
+            
+            # 获取所有图片列表（更新后的）
+            all_images = content_data["materials"]["images"]
+            total_images = len(all_images)
+            
+            # 查找或创建图片轨道
+            image_track = None
+            for track in content_data["tracks"]:
+                if track.get("type") == "video" and track.get("id") == "track_images":
+                    image_track = track
+                    break
+            
+            if image_track is None:
+                # 创建新的图片轨道
+                image_track = {
+                    "id": "track_images",
+                    "type": "video",
+                    "clips": []
+                }
+                content_data["tracks"].append(image_track)
+            
+            # 清空现有的图片剪辑
+            image_track["clips"] = []
+            
+            # 重新计算所有图片的剪辑位置
+            current_time = 0
+            for idx, img in enumerate(all_images):
+                clip_id = f"clip_image_{idx}_{uuid.uuid4().hex[:4]}"
+                
+                clip = {
+                    "id": clip_id,
+                    "materialId": img["id"],
+                    "startTime": current_time,
+                    "duration": img["duration"],
+                    "position": {"x": 0, "y": 0},
+                    "scale": 1.0,
+                    "rotation": 0,
+                    "opacity": 1.0
+                }
+                
+                image_track["clips"].append(clip)
+                current_time += img["duration"]
+            
+            # 更新项目总时长
+            total_duration = current_time
+            
+            # 更新视频素材的时长（如果有的话）
+            if "videos" in content_data["materials"]:
+                for video in content_data["materials"]["videos"]:
+                    if "duration" in video:
+                        video["duration"] = total_duration
+                        video["outPoint"] = total_duration
+            
+            # 更新音频素材的时长（如果有的话）
+            if "audios" in content_data["materials"]:
+                for audio in content_data["materials"]["audios"]:
+                    if "duration" in audio:
+                        audio["duration"] = total_duration
+                        audio["outPoint"] = total_duration
+            
+            # 更新音频剪辑的时长
+            for track in content_data["tracks"]:
+                if track.get("type") == "audio":
+                    for clip in track.get("clips", []):
+                        if "duration" in clip:
+                            clip["duration"] = total_duration
+            
+            # 保存更新后的文件
+            with open(meta_info_path, "w", encoding="utf-8") as f:
+                json.dump(meta_info, f, ensure_ascii=False, indent=2)
+            
+            with open(content_path, "w", encoding="utf-8") as f:
+                json.dump(content_data, f, ensure_ascii=False, indent=2)
+            
+            return (draft_path, f"成功添加图片，当前共有{total_images}张图片，总时长{total_duration}秒", total_images)
+            
+        except Exception as e:
+            return ("", f"错误：{str(e)}", 0)
+
 # 注册所有节点
 NODE_CLASS_MAPPINGS = {
     "JianyingDraftNode": JianyingDraftNode,
     "JianyingDraftAudioAdder": JianyingDraftAudioAdder,
+    "JianyingDraftImageAdder": JianyingDraftImageAdder,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "JianyingDraftNode": "剪映草稿创建器",
     "JianyingDraftAudioAdder": "剪映草稿音频添加器",
+    "JianyingDraftImageAdder": "剪映草稿图片添加器",
 }
