@@ -24,10 +24,9 @@ class JianyingDraftNode:
                 "fps": (["30", "60", "24"], {"default": "30", "name": "帧率"}),
             }
         }
-
-
-    RETURN_TYPES = ("STRING",)
-    RETURN_NAMES = ("UUID",)
+    
+    RETURN_TYPES = ("STRING", "STRING")
+    RETURN_NAMES = ("UUID", "草稿目录")
     FUNCTION = "create_draft"
     CATEGORY = "剪映工具"
     
@@ -107,4 +106,130 @@ class JianyingDraftNode:
         with open(os.path.join(draft_folder, "draft_content.json"), "w", encoding="utf-8") as f:
             json.dump(content_data, f, ensure_ascii=False, indent=2)
         
-        return (draft_id,)
+        return (draft_id, draft_folder)
+
+class JianyingDraftAudioAdder:
+    """向剪映草稿添加背景音乐的节点"""
+    
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "draft_path": ("STRING", {
+                    "default": "", 
+                    "name": "剪映草稿路径", 
+                    "description": "剪映草稿文件夹路径，包含draft_meta_info.json和draft_content.json"
+                }),
+            },
+            "optional": {
+                "audio_path": ("STRING", {"default": "", "name": "音频文件路径", "description": "背景音乐文件路径"}),
+                "audio_duration": ("FLOAT", {"default": 0, "min": 0, "max": 3600.0, "step": 0.1, "name": "音频时长限制", "description": "限制音频的最大时长，0表示使用草稿原时长"}),
+                "audio_volume": ("FLOAT", {"default": 0.8, "min": 0.0, "max": 1.0, "step": 0.1, "name": "音频音量", "description": "背景音乐的音量（0-1）"}),
+            }
+        }
+    
+    RETURN_TYPES = ("STRING", "STRING")
+    RETURN_NAMES = ("草稿目录", "状态信息")
+    FUNCTION = "add_audio_to_draft"
+    CATEGORY = "剪映工具"
+    
+    def add_audio_to_draft(self, draft_path, audio_path="", audio_duration=0, audio_volume=0.8):
+        """向剪映草稿添加背景音乐"""
+        
+        if not draft_path or not os.path.exists(draft_path):
+            return ("", "错误：草稿路径不存在")
+        
+        meta_info_path = os.path.join(draft_path, "draft_meta_info.json")
+        content_path = os.path.join(draft_path, "draft_content.json")
+        
+        if not os.path.exists(meta_info_path) or not os.path.exists(content_path):
+            return ("", "错误：草稿文件不完整，缺少JSON文件")
+        
+        try:
+            # 读取现有草稿信息
+            with open(meta_info_path, "r", encoding="utf-8") as f:
+                meta_info = json.load(f)
+            
+            with open(content_path, "r", encoding="utf-8") as f:
+                content_data = json.load(f)
+            
+            # 获取草稿的最大时长
+            max_duration = 0
+            if "materials" in content_data and "videos" in content_data["materials"]:
+                for video in content_data["materials"]["videos"]:
+                    if "duration" in video:
+                        max_duration = max(max_duration, video["duration"])
+            
+            if max_duration == 0:
+                max_duration = 10.0  # 默认值
+            
+            # 使用指定的音频时长限制或草稿时长
+            if audio_duration > 0 and audio_duration < max_duration:
+                final_audio_duration = audio_duration
+            else:
+                final_audio_duration = max_duration
+            
+            # 添加音频到元数据
+            audio_id = f"audio_{uuid.uuid4().hex[:8]}"
+            if "draft_materials" not in meta_info:
+                meta_info["draft_materials"] = []
+            
+            meta_info["draft_materials"].append({
+                "id": audio_id,
+                "path": audio_path,
+                "type": "audio"
+            })
+            
+            # 添加音频到内容
+            if "materials" not in content_data:
+                content_data["materials"] = {}
+            if "audios" not in content_data["materials"]:
+                content_data["materials"]["audios"] = []
+            
+            content_data["materials"]["audios"].append({
+                "id": audio_id,
+                "path": audio_path,
+                "duration": final_audio_duration,
+                "volume": audio_volume,
+                "inPoint": 0,
+                "outPoint": final_audio_duration
+            })
+            
+            # 添加音频轨道
+            if "tracks" not in content_data:
+                content_data["tracks"] = []
+            
+            content_data["tracks"].append({
+                "id": f"track_audio_{audio_id}",
+                "type": "audio",
+                "clips": [{
+                    "id": f"clip_audio_{audio_id}",
+                    "materialId": audio_id,
+                    "startTime": 0,
+                    "duration": final_audio_duration,
+                    "volume": audio_volume
+                }]
+            })
+            
+            # 保存更新后的文件
+            with open(meta_info_path, "w", encoding="utf-8") as f:
+                json.dump(meta_info, f, ensure_ascii=False, indent=2)
+            
+            with open(content_path, "w", encoding="utf-8") as f:
+                json.dump(content_data, f, ensure_ascii=False, indent=2)
+            
+            return (draft_path, f"成功添加背景音乐，时长限制为{final_audio_duration}秒")
+            
+        except Exception as e:
+            return ("", f"错误：{str(e)}")
+
+# 注册所有节点
+NODE_CLASS_MAPPINGS = {
+    "JianyingDraftNode": JianyingDraftNode,
+    "JianyingDraftAudioAdder": JianyingDraftAudioAdder,
+}
+
+NODE_DISPLAY_NAME_MAPPINGS = {
+    "JianyingDraftNode": "剪映草稿创建器",
+    "JianyingDraftAudioAdder": "剪映草稿音频添加器",
+}
