@@ -135,14 +135,23 @@ class JianyingDraftAudioAdder:
     def add_audio_to_draft(self, draft_path=None, audio_path="", audio_volume=0.8):
         """向剪映草稿添加背景音乐"""
         
-        if draft_path is None or not draft_path or not os.path.exists(draft_path):
-            return ("", "错误：草稿路径不存在")
+        if draft_path is None or not draft_path:
+            return ("", "错误：草稿路径不能为空")
+        
+        # 标准化路径
+        draft_path = os.path.normpath(draft_path.strip())
+        
+        if not os.path.exists(draft_path):
+            return ("", f"错误：草稿路径不存在: {draft_path}")
         
         meta_info_path = os.path.join(draft_path, "draft_meta_info.json")
         content_path = os.path.join(draft_path, "draft_content.json")
         
-        if not os.path.exists(meta_info_path) or not os.path.exists(content_path):
-            return ("", "错误：草稿文件不完整，缺少JSON文件")
+        if not os.path.exists(meta_info_path):
+            return ("", f"错误：找不到文件 {meta_info_path}")
+        
+        if not os.path.exists(content_path):
+            return ("", f"错误：找不到文件 {content_path}")
         
         try:
             # 读取现有草稿信息
@@ -214,7 +223,7 @@ class JianyingDraftAudioAdder:
             with open(content_path, "w", encoding="utf-8") as f:
                 json.dump(content_data, f, ensure_ascii=False, indent=2)
             
-            return (draft_path, f"成功添加背景音乐，时长限制为{final_audio_duration}秒")
+            return (draft_path, f"成功添加背景音乐，音频时长设置为{final_audio_duration}秒")
             
         except Exception as e:
             return ("", f"错误：{str(e)}")
